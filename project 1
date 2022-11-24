@@ -1,0 +1,177 @@
+ 
+SELECT location, date, total_cases, new_cases,total_deaths, population 
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+order by 3,4
+ 
+--SELECT * 
+--FROM `my-project-22-368513.Portfolio_Project.vaccination` 
+--order by 3,4
+ 
+--selecting data that we are going to use
+SELECT location, date, total_cases, new_cases,total_deaths, population 
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+order by 1,2
+ 
+-- looking at total_cases vs total_deaths
+-- shows likelihood of dying in my country
+SELECT location, date, total_cases,total_deaths, (total_deaths/total_cases)*100 as death_percentage
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+where location like "Sy%"
+order by 1,2
+ 
+ 
+-- looking at total_cases vs population
+-- shows what percentage of the population got covid
+SELECT location, date, population,total_cases, (total_cases/population)*100 as  Covid_population_percentage
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+--where location like "Sy%"
+order by 1,2
+ 
+-- looking at the population with the highest rat of infection
+SELECT location, population,max(total_cases) as highestInfection, max((total_cases/population))*100 as  Covid_population_percentage
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+Group by location, population
+--where location like "Sy%"
+order by Covid_population_percentage desc
+ 
+ 
+ 
+-- showing the country with the highest death count
+SELECT location, max(total_deaths) as highestDeath
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+Group by location 
+--where location like "Sy%"
+order by highestDeath
+ 
+ 
+-- showing the country with the highest death count
+SELECT location, max(cast(total_deaths as int)) as highestDeath
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+where continent is not null -- to get rid of the mistakes in the data 
+Group by location 
+--where location like "Sy%"
+order by highestDeath desc
+ 
+
+
+
+-- we are going to break things down the continent
+-- showing the continent with the highest death count 
+SELECT  continent, max(cast(total_deaths as int)) as highestDeath
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+where continent is not null -- to get rid of the mistakes in the data 
+Group by continent 
+--where location like "Sy%"
+order by highestDeath desc
+ 
+ 
+-- global number
+SELECT date , sum(new_cases) as totalCases,sum(cast(new_deaths as int)) as death, sum(cast(new_deaths as int))/sum(total_cases )*100 as Deathprecentage
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+--where location like "Sy%"
+where continent is not null
+group by date
+order by 1,2
+ 
+ 
+ 
+ 
+ 
+-- global number
+SELECT  sum(new_cases) as totalCases,sum(cast(new_deaths as int)) as death, sum(cast(new_deaths as int))/sum(total_cases ) as Deathprecentage
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+--where location like "Sy%"
+where continent is not null
+--group by date
+order by 1,2
+ 
+ 
+ 
+-- joining tables
+-- looking at total population vs vaccination
+select dea.continent, dea.location, dea.population, dea.date, vac.new_vaccinations
+from my-project-22-368513.Portfolio_Project.Deaths dea
+join `my-project-22-368513.Portfolio_Project.vaccination` vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+  where dea.continent is not null
+  order by 2,3
+ 
+ 
+select dea.continent, dea.location, dea.population, dea.date, vac.new_vaccinations,
+sum(Cast(vac.new_vaccinations as int)) over (partition by dea.location order by dea.location, dea.date) as rollingPeoplevaccineted
+from my-project-22-368513.Portfolio_Project.Deaths dea
+join `my-project-22-368513.Portfolio_Project.vaccination` vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+  where dea.continent is not null
+  order by 2,3
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+-- use CTE
+WITH PopvsVac(Continent, Location, Population, Date, New_Vaccination, Roll)
+AS
+(
+select dea.continent, dea.location, dea.population, dea.date, vac.new_vaccinations,
+  sum(Cast(vac.new_vaccinations as int)) over (partition by dea.location order by dea.location, dea.date) as Roll               
+  --,(rollingPeoplevaccineted/population)*100 
+from my-project-22-368513.Portfolio_Project.Deaths dea
+join `my-project-22-368513.Portfolio_Project.vaccination` vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+where dea.continent is not null
+ --order by 2,3
+)
+select *
+from PopvsVac
+ 
+ 
+-- creat TEMP
+drop table if exists percentagepopulation
+create table percentagepopulation
+(
+continent STRING,
+location  STRING,
+population numirc,
+date datetime
+new_vaccinations numirc
+Roll  numirc
+)
+insert into percentagepopulation
+select dea.continent, dea.location, dea.population, dea.date, vac.new_vaccinations,
+  sum(Cast(vac.new_vaccinations as int)) over (partition by dea.location order by dea.location, dea.date) as Roll               
+  --,(rollingPeoplevaccineted/population)*100 
+from my-project-22-368513.Portfolio_Project.Deaths dea
+join `my-project-22-368513.Portfolio_Project.vaccination` vac
+  on dea.location = vac.location
+  and dea.date = vac.date
+ --where dea.continent is not null
+ --order by 2,3
+ 
+select *, (roll/population) *100
+from percentagepopulation
+ 
+ 
+--creating view to store data for later visulization
+create view view percentagepopulation as
+SELECT  continent, max(cast(total_deaths as int)) as highestDeath
+FROM `my-project-22-368513.Portfolio_Project.Deaths` 
+where continent is not null -- to get rid of the mistakes in the data 
+Group by continent 
+--where location like "Sy%"
+order by highestDeath desc
+ 
+select *
+from percentagepopulation
+ 
+ 
+ 
+ 
